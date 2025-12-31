@@ -66,7 +66,7 @@ except Exception as e:
     print("⚠️ %%fenicsx magic not found:", e)
 ```
 
-After this finishes, the Jupyter cell magic %%fenicsx becomes available.
+After this finishes, the Jupyter cell magic `%%fenicsx` becomes available.
 
 ---
 
@@ -92,9 +92,9 @@ This will measure elapsed time on rank `0`.
 
 ### 📦 What This Setup Does
 
-- Installs FEniCSx using micromamba
+- Installs FEniCSx using `micromamba`
 - Enables MPI execution inside Colab
-- Registers a custom Jupyter cell magic %%fenicsx
+- Registers a custom Jupyter cell magic `%%fenicsx`
 - Keeps everything reproducible via GitHub
 
 ---
