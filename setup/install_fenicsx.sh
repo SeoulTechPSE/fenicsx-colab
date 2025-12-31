@@ -81,7 +81,7 @@ if $ENV_EXISTS && [ "$NEW_HASH" = "$OLD_HASH" ] && ! $FORCE; then
 else
   echo "🔄 Installing $ENV_NAME"
   $ENV_EXISTS && micromamba remove -n "$ENV_NAME" -y --quiet
-  micromamba create -n "$ENV_NAME" -f "$YML_FILE" -y --quiet
+  micromamba create -n "$ENV_NAME" -f "$YML_FILE" -y
   echo "$NEW_HASH" > "$HASH_FILE"
   echo "🎉 fenicsx environment ready"
 fi
