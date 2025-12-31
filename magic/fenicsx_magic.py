@@ -158,14 +158,6 @@ _t1 = time.perf_counter()
 # -----------------
 if _rank == 0:
     print(f"⏱ Elapsed time: {{_t1 - _t0:.6f}} s")
-
-# -----------------
-# sequential rank output
-# -----------------
-# for r in range(_size):
-#     if _rank == r:
-#         print(f"Hello from rank {{_rank}}")
-#     _comm.Barrier()
 """
     else:
         wrapped = user_code

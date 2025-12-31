@@ -1,11 +1,11 @@
-# FEniCSx Colab Quick Start
+## FEniCSx Colab Quick Start
 
 This single cell will set up FEniCSx on Google Colab and
 register the `%%fenicsx` Jupyter cell magic.
 
 **Features**
 
-- 🖥 micromamba executable: `/content/micromamba/bin/micromamba` (Colab local)
+- 🖥 `micromamba` executable: `/content/micromamba/bin/micromamba` (Colab local)
 - 💾 Package cache: Google Drive `/content/drive/MyDrive/mamba_pkgs`
 - 🔄 Safe for repeated runs: existing repo/env will be skipped
 - 🧹 `--clean` option to force environment reinstallation
@@ -21,8 +21,9 @@ import os
 if not os.path.ismount("/content/drive"):
     drive.mount("/content/drive")
 
-# --------------------------------------------------
-
+# ==================================================
+# 2️⃣ Repo & paths
+# ==================================================
 from pathlib import Path
 import subprocess, sys
 
@@ -35,7 +36,7 @@ def run(cmd):
     subprocess.run(cmd, check=True)
 
 # --------------------------------------------------
-# 2️⃣ Clone repo (idempotent)
+# 3️⃣ Clone repository (idempotent)
 # --------------------------------------------------
 if not REPO_DIR.exists():
     print("📥 Cloning fenicsx-colab...")
@@ -46,21 +47,31 @@ else:
     print("📦 Repo already exists — skipping clone")
 
 # --------------------------------------------------
-# 3️⃣ Run setup IN THIS KERNEL (CRITICAL)
+# 4️⃣ Run setup in current kernel
 # --------------------------------------------------
 print("🚀 Running setup_fenicsx.py in current kernel")
+
+# ------------------------------
+# Option: add '--clean' if you want to force reinstall
+# ------------------------------
+USE_CLEAN = False  # <=== Set True to remove existing env
+opts = "--clean" if USE_CLEAN else ""
+
+# Run the setup script
 get_ipython().run_line_magic(
-    "run", str(REPO_DIR / "setup_fenicsx.py")
+    "run", f"{REPO_DIR / 'setup_fenicsx.py'} {opts}"
 )
+
+# ==================================================
+# 5️⃣ Verify %%fenicsx magic is registered
+# ==================================================
+try:
+    get_ipython().run_cell_magic('fenicsx', '--info', '')
+except Exception as e:
+    print("⚠️ %%fenicsx magic not found:", e)
 ```
 
 ### Usage Examples
-
-- Displays MPI implementation, Python version, FEniCSx version, and active environment info.
-
-```python
-%%fenicsx --info
-```
 
 - Runs your FEniCSx code using 4 MPI ranks.
 
@@ -79,11 +90,6 @@ if comm.rank == 0:
 else:
     print(f"Hello from rank {comm.rank}")
 ```
-
-### Options
-
-- `--clean` : Remove existing environment and reinstall from scratch.
-- `--time` : Measure execution time of the cell.
 
 ### Notes
 
