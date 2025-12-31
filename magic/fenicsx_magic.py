@@ -1,52 +1,58 @@
-import os, subprocess, tempfile, textwrap, shlex, time
-from pathlib import Path
+# ==================================================
+# fenicsx_magic.py  (Drive-free, PATH-safe)
+# ==================================================
+
+import os
+import shlex
+import subprocess
+import tempfile
+import textwrap
 from IPython.core.magic import register_cell_magic
 
-# ==================================================
-# micromamba (ABSOLUTE PATH)
-# ==================================================
-MICROMAMBA = Path("/content/micromamba/bin/micromamba")
+# --------------------------------------------------
+# Hard-coded micromamba path (NO PATH DEPENDENCY)
+# --------------------------------------------------
+MICROMAMBA = "/content/micromamba/bin/micromamba"
+ENV_NAME = "fenicsx"
 
-if not MICROMAMBA.exists():
-    raise RuntimeError(
-        "❌ micromamba not found at /content/micromamba/bin/micromamba\n"
-        "Run setup_fenicsx.py first."
-    )
-
-# ==================================================
-# MPI helpers
-# ==================================================
-def detect_mpi():
+# --------------------------------------------------
+# MPI detection helpers
+# --------------------------------------------------
+def detect_mpi(env):
     try:
         out = subprocess.run(
             ["mpiexec", "--version"],
-            capture_output=True, text=True, timeout=2
+            env=env, capture_output=True, text=True, timeout=2
         )
         txt = (out.stdout + out.stderr).lower()
-        if "open mpi" in txt:
+        if "open mpi" in txt or "open-mpi" in txt:
             return "openmpi"
     except Exception:
         pass
     return "mpich"
 
 
-def mpi_version():
+def mpi_version(env):
     try:
         out = subprocess.run(
             ["mpiexec", "--version"],
-            capture_output=True, text=True, timeout=2
+            env=env, capture_output=True, text=True, timeout=2
         )
         return (out.stdout + out.stderr).splitlines()[0]
     except Exception:
         return "unknown"
 
-# ==================================================
-# %%fenicsx
-# ==================================================
+
+# --------------------------------------------------
+# %%fenicsx cell magic
+# --------------------------------------------------
 @register_cell_magic
 def fenicsx(line, cell):
     args = shlex.split(line)
 
+    # -----------------------------
+    # Options
+    # -----------------------------
     np = 1
     info_mode = "--info" in args
     time_mode = "--time" in args
@@ -54,29 +60,38 @@ def fenicsx(line, cell):
     if "-np" in args:
         np = int(args[args.index("-np") + 1])
 
-    mpi_impl = detect_mpi()
-    mpi_ver  = mpi_version()
+    # -----------------------------
+    # Environment (minimal & safe)
+    # -----------------------------
+    env = os.environ.copy()
+    env.update({
+        "OMPI_ALLOW_RUN_AS_ROOT": "1",
+        "OMPI_ALLOW_RUN_AS_ROOT_CONFIRM": "1",
+    })
 
-    # --------------------------------------------------
-    # command builder
-    # --------------------------------------------------
-    def cmd(script):
+    mpi_impl = detect_mpi(env)
+    mpi_ver  = mpi_version(env)
+
+    # -----------------------------
+    # Command builder
+    # -----------------------------
+    def build_cmd(script):
         if np == 1:
             return [
-                str(MICROMAMBA), "run", "-n", "fenicsx",
+                MICROMAMBA, "run", "-n", ENV_NAME,
                 "python", script
             ]
 
         launcher = "mpirun" if mpi_impl == "openmpi" else "mpiexec"
         return [
-            str(MICROMAMBA), "run", "-n", "fenicsx",
+            MICROMAMBA, "run", "-n", ENV_NAME,
             launcher, "-n", str(np),
             "python", script
         ]
 
-    # --------------------------------------------------
-    # --info
-    # --------------------------------------------------
+    # -----------------------------
+    # --info mode
+    # -----------------------------
     if info_mode:
         info_code = """
 from mpi4py import MPI
@@ -88,13 +103,17 @@ if comm.rank == 0:
     print("📦 dolfinx        :", dolfinx.__version__)
     print("💻 Platform       :", platform.platform())
     print("🧵 MPI size       :", comm.size)
+    print("🧵 Running as root:", os.geteuid() == 0)
 """
         with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False) as f:
             f.write(info_code)
             script = f.name
 
         try:
-            res = subprocess.run(cmd(script), capture_output=True, text=True)
+            res = subprocess.run(
+                build_cmd(script),
+                env=env, capture_output=True, text=True
+            )
             print(res.stdout, end="")
             print(res.stderr, end="")
         finally:
@@ -102,15 +121,16 @@ if comm.rank == 0:
 
         print("\n🔎 fenicsx runtime info")
         print("-----------------------")
-        print("Environment       : fenicsx")
-        print(f"MPI implementation: {mpi_impl.upper()}")
-        print(f"MPI version       : {mpi_ver}")
-        print(f"MPI ranks (-np)   : {np}")
+        print(f"Environment        : {ENV_NAME}")
+        print(f"micromamba         : {MICROMAMBA}")
+        print(f"MPI implementation : {mpi_impl.upper()}")
+        print(f"MPI version        : {mpi_ver}")
+        print(f"MPI ranks (-np)    : {np}")
         return
 
-    # --------------------------------------------------
-    # normal execution
-    # --------------------------------------------------
+    # -----------------------------
+    # Normal execution
+    # -----------------------------
     user_code = textwrap.dedent(cell)
 
     if time_mode:
@@ -137,7 +157,10 @@ if _comm.rank == 0:
         script = f.name
 
     try:
-        res = subprocess.run(cmd(script), capture_output=True, text=True)
+        res = subprocess.run(
+            build_cmd(script),
+            env=env, capture_output=True, text=True
+        )
         print(res.stdout, end="")
         print(res.stderr, end="")
     finally:
