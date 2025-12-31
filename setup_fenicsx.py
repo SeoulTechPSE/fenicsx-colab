@@ -16,7 +16,7 @@ MICROMAMBA = "/content/micromamba/bin/micromamba"
 # Helpers
 # ==================================================
 def run(cmd, cwd=None):
-    print("  $", " ".join(map(str, cmd)))
+    #print("   $", " ".join(map(str, cmd)))
     subprocess.run(cmd, cwd=cwd, check=True)
 
 # ==================================================
