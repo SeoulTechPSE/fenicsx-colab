@@ -1,13 +1,15 @@
 # ==================================================
-# fenicsx_magic.py  (Drive-free, PATH-safe)
+# fenicsx_magic.py 
 # ==================================================
 
 import os
+import time
 import shlex
 import subprocess
 import tempfile
 import textwrap
 from IPython.core.magic import register_cell_magic
+from pathlib import Path
 
 # --------------------------------------------------
 # Hard-coded micromamba path (NO PATH DEPENDENCY)
@@ -30,7 +32,6 @@ def detect_mpi(env):
     except Exception:
         pass
     return "mpich"
-
 
 def mpi_version(env):
     try:
@@ -61,7 +62,7 @@ def fenicsx(line, cell):
         np = int(args[args.index("-np") + 1])
 
     # -----------------------------
-    # Environment (minimal & safe)
+    # Environment
     # -----------------------------
     env = os.environ.copy()
     env.update({
@@ -102,7 +103,6 @@ if comm.rank == 0:
     print("🐍 Python          :", sys.version.split()[0])
     print("📦 dolfinx         :", dolfinx.__version__)
     print("💻 Platform        :", platform.platform())
-    print("🧵 MPI size        :", comm.size)
     print("🧵 Running as root :", os.geteuid() == 0)
 """
         with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False) as f:
@@ -129,7 +129,7 @@ if comm.rank == 0:
         return
 
     # -----------------------------
-    # Normal execution
+    # Normal execution / --time
     # -----------------------------
     user_code = textwrap.dedent(cell)
 
@@ -139,15 +139,29 @@ from mpi4py import MPI
 import time
 
 _comm = MPI.COMM_WORLD
+_rank = _comm.rank
+_size = _comm.size
+
+_comm.Barrier()
 _t0 = time.perf_counter()
 
+# -----------------
+# User code
+# -----------------
 {user_code}
 
 _comm.Barrier()
 _t1 = time.perf_counter()
 
-if _comm.rank == 0:
-    print(f"⏱ Elapsed time: {{_t1 - _t0:.6f}} s")
+# -----------------
+# Ordered output
+# -----------------
+for r in range(_size):
+    if _rank == r:
+        if _rank == 0:
+            print(f"⏱ Elapsed time: {{_t1 - _t0:.6f}} s")
+        print(f"Hello from rank {{_rank}}")
+    _comm.Barrier()
 """
     else:
         wrapped = user_code

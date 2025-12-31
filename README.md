@@ -13,25 +13,45 @@ register the `%%fenicsx` Jupyter cell magic.
 ---
 
 ```python
-# ==================================================
+# --------------------------------------------------
 # 1️⃣ Mount Google Drive (for cache)
-# ==================================================
-from google.colab import drive
+# --------------------------------------------------
+from google.colab import drive, output
 import os
-
 if not os.path.ismount("/content/drive"):
     drive.mount("/content/drive")
 
-# ==================================================
-# 2️⃣ Clone repository (skip if exists)
-# ==================================================
-!git clone https://github.com/seoultechpse/fenicsx-colab.git /content/fenicsx-colab \
-  || echo "📦 Repo exists — skipping"
+# --------------------------------------------------
 
-# ==================================================
-# 3️⃣ Run setup (install FEniCSx environment + %%fenicsx magic)
-# ==================================================
-!python /content/fenicsx-colab/setup_fenicsx.py --clean
+from pathlib import Path
+import subprocess, sys
+
+REPO_URL = "https://github.com/seoultechpse/fenicsx-colab.git"
+ROOT = Path("/content")
+REPO_DIR = ROOT / "fenicsx-colab"
+
+def run(cmd):
+    #print("   $", " ".join(map(str, cmd)))
+    subprocess.run(cmd, check=True)
+
+# --------------------------------------------------
+# 2️⃣ Clone repo (idempotent)
+# --------------------------------------------------
+if not REPO_DIR.exists():
+    print("📥 Cloning fenicsx-colab...")
+    run(["git", "clone", REPO_URL, str(REPO_DIR)])
+elif not (REPO_DIR / ".git").exists():
+    raise RuntimeError("Directory exists but is not a git repository")
+else:
+    print("📦 Repo already exists — skipping clone")
+
+# --------------------------------------------------
+# 3️⃣ Run setup IN THIS KERNEL (CRITICAL)
+# --------------------------------------------------
+print("🚀 Running setup_fenicsx.py in current kernel")
+get_ipython().run_line_magic(
+    "run", str(REPO_DIR / "setup_fenicsx.py")
+)
 ```
 
 ### Usage Examples
@@ -45,9 +65,19 @@ if not os.path.ismount("/content/drive"):
 - Runs your FEniCSx code using 4 MPI ranks.
 
 ```python
-%%fenicsx --np 4
+%%fenicsx -np 4 --time
+
+from mpi4py import MPI
 import dolfinx
-print("Hello from 4 MPI ranks!")
+
+comm = MPI.COMM_WORLD
+
+if comm.rank == 0:
+    print(f"Hello from rank {comm.rank}")
+    print("  dolfinx :", dolfinx.__version__)
+    print("  MPI size:", MPI.COMM_WORLD.size)
+else:
+    print(f"Hello from rank {comm.rank}")
 ```
 
 ### Options
