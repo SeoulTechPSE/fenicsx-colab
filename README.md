@@ -46,13 +46,9 @@ else:
 
 # --------------------------------------------------
 # 4️⃣ Run setup in current kernel
-# --------------------------------------------------
-print("🚀 Running setup_fenicsx.py in current kernel")
-
+#    Option: add '--clean' to force reinstall
 # ------------------------------
-# Option: add '--clean' to force reinstall
-# ------------------------------
-USE_CLEAN = False  # <=== Set True to remove existing environment
+USE_CLEAN = False  # <--- Set True to remove existing environment
 opts = "--clean" if USE_CLEAN else ""
 
 # Run the setup script
@@ -64,7 +60,7 @@ get_ipython().run_line_magic(
 # 5️⃣ Verify %%fenicsx magic is registered
 # ==================================================
 try:
-    get_ipython().run_cell_magic('fenicsx', '--info', '')
+    get_ipython().run_cell_magic('fenicsx', '--info -np 4', '')
 except Exception as e:
     print("⚠️ %%fenicsx magic not found:", e)
 ```
@@ -78,9 +74,8 @@ except Exception as e:
    - Default `False` preserves the environment and is faster
 1. Cell magic
    - After setup, you can use `%%fenicsx` in Colab for parallel MPI computations
-   - Options:
-     - `-np N` → number of MPI ranks
-     - `--time` → measure elapsed time
+   - `-np N` → number of MPI ranks
+   - `--time` → measure elapsed time
 
 ### Example usage:
 
