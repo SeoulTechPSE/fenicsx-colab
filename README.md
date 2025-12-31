@@ -1,14 +1,12 @@
-## FEniCSx Colab Quick Start
+# FEniCSx Colab Quick Start
 
-This single cell will set up FEniCSx on Google Colab and
-register the `%%fenicsx` Jupyter cell magic.
+This single cell will:
 
-**Features**
-
-- 🖥 `micromamba` executable: `/content/micromamba/bin/micromamba` (Colab local)
-- 💾 Package cache: Google Drive `/content/drive/MyDrive/mamba_pkgs`
-- 🔄 Safe for repeated runs: existing repo/env will be skipped
-- 🧹 `--clean` option to force environment reinstallation
+1. Mount Google Drive (for package cache)
+2. Clone the FEniCSx Colab repository (idempotent)
+3. Install the FEniCSx environment via micromamba
+4. Register the `%%fenicsx` Jupyter cell magic
+5. Optionally run self-test
 
 ---
 
@@ -52,9 +50,9 @@ else:
 print("🚀 Running setup_fenicsx.py in current kernel")
 
 # ------------------------------
-# Option: add '--clean' if you want to force reinstall
+# Option: add '--clean' to force reinstall
 # ------------------------------
-USE_CLEAN = False  # <=== Set True to remove existing env
+USE_CLEAN = False  # <=== Set True to remove existing environment
 opts = "--clean" if USE_CLEAN else ""
 
 # Run the setup script
@@ -71,9 +69,25 @@ except Exception as e:
     print("⚠️ %%fenicsx magic not found:", e)
 ```
 
-### Usage Examples
+## Notes
 
-- Runs your FEniCSx code using 4 MPI ranks.
+1. Goolge Drive cache
+
+- Initial mount required; repeated runs are safe
+
+2. --clean
+
+- Set `USE_CLEAN = True` to remove existing FEniCSx environment and reinstall
+- Default `False` preserves the environment and is faster
+
+3. Cell magic
+
+- After setup, you can use `%%fenicsx` in Colab for parallel MPI computations
+- Options:
+  - `-np N` → number of MPI ranks
+  - `--time` → measure elapsed time
+
+### Example usage:
 
 ```python
 %%fenicsx -np 4 --time
@@ -91,8 +105,4 @@ else:
     print(f"Hello from rank {comm.rank}")
 ```
 
-### Notes
-
-- `micromamba` executable is local (`/content/micromamba/bin/micromamba`)
-- Only package cache is stored on Drive (`/content/drive/MyDrive/mamba_pkgs`)
-- Avoid placing the `micromamba` executable itself on Drive (permission issues may occur).
+This will print the rank output in order and measure elapsed time on rank 0.
