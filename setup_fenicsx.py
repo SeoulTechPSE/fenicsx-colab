@@ -17,8 +17,14 @@ MICROMAMBA = "/content/micromamba/bin/micromamba"
 # ==================================================
 def run(cmd, cwd=None):
     #print("   $", " ".join(map(str, cmd)))
-    result = subprocess.run(cmd, cwd=cwd, check=True)
-    print("   ✅ Command succeeded")
+    result = subprocess.run(
+        cmd, 
+        cwd=cwd, 
+        check=True,
+        capture_output=True,
+        text=True
+    )
+    print(f"   {result.stdout}")
 
 # ==================================================
 # Sanity checks
