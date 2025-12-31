@@ -2,14 +2,8 @@
 # fenicsx_magic.py 
 # ==================================================
 
-import os
-import time
-import shlex
-import subprocess
-import tempfile
-import textwrap
+import os, subprocess, tempfile, textwrap, shlex
 from IPython.core.magic import register_cell_magic
-from pathlib import Path
 
 # --------------------------------------------------
 # Hard-coded micromamba path (NO PATH DEPENDENCY)
@@ -129,7 +123,7 @@ if comm.rank == 0:
         return
 
     # -----------------------------
-    # Normal execution / --time
+    # Normal execution (with optional timing)
     # -----------------------------
     user_code = textwrap.dedent(cell)
 
@@ -168,10 +162,10 @@ if _rank == 0:
 # -----------------
 # sequential rank output
 # -----------------
-for r in range(_size):
-    if _rank == r:
-        print(f"Hello from rank {{_rank}}")
-    _comm.Barrier()
+# for r in range(_size):
+#     if _rank == r:
+#         print(f"Hello from rank {{_rank}}")
+#     _comm.Barrier()
 """
     else:
         wrapped = user_code
