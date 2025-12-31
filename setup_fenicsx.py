@@ -17,7 +17,8 @@ MICROMAMBA = "/content/micromamba/bin/micromamba"
 # ==================================================
 def run(cmd, cwd=None):
     #print("   $", " ".join(map(str, cmd)))
-    subprocess.run(cmd, cwd=cwd, check=True)
+    result = subprocess.run(cmd, cwd=cwd, check=True)
+    print(result.stdout)
 
 # ==================================================
 # Sanity checks
@@ -33,10 +34,10 @@ if not MAGIC_FILE.exists():
 # ==================================================
 # 0. Ensure Google Drive (for cache)
 # ==================================================
-if "google.colab" in sys.modules:
-    from google.colab import drive
-    if not os.path.ismount("/content/drive"):
-        drive.mount("/content/drive")
+# if "google.colab" in sys.modules:
+#     from google.colab import drive
+#     if not os.path.ismount("/content/drive"):
+#         drive.mount("/content/drive")
 
 if not Path("/content/drive/MyDrive").exists():
     print("❌ Google Drive not available. Required for package cache.")
