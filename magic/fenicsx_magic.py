@@ -142,6 +142,9 @@ _comm = MPI.COMM_WORLD
 _rank = _comm.rank
 _size = _comm.size
 
+# -----------------
+# synchronize before timing
+# -----------------
 _comm.Barrier()
 _t0 = time.perf_counter()
 
@@ -150,16 +153,23 @@ _t0 = time.perf_counter()
 # -----------------
 {user_code}
 
+# -----------------
+# synchronize after user code
+# -----------------
 _comm.Barrier()
 _t1 = time.perf_counter()
 
 # -----------------
-# Ordered output
+# elapsed time only on rank 0
+# -----------------
+if _rank == 0:
+    print(f"⏱ Elapsed time: {{_t1 - _t0:.6f}} s")
+
+# -----------------
+# sequential rank output
 # -----------------
 for r in range(_size):
     if _rank == r:
-        if _rank == 0:
-            print(f"⏱ Elapsed time: {{_t1 - _t0:.6f}} s")
         print(f"Hello from rank {{_rank}}")
     _comm.Barrier()
 """
