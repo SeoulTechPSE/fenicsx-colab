@@ -1,87 +1,91 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
-ENV_NAME=fenicsx
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-YML_FILE="$ROOT_DIR/env/fenicsx.yml"
+# ==================================================
+# FEniCSx install script for Google Colab
+#  - micromamba binary: /content (exec OK)
+#  - package cache    : Google Drive (persistent)
+# ==================================================
 
-# Drive cache
-MAMBA_ROOT_PREFIX=/content/drive/MyDrive/micromamba
-export MAMBA_ROOT_PREFIX
-export PATH=$MAMBA_ROOT_PREFIX/bin:$PATH
-export MAMBA_LOG_LEVEL=error
-
-HASH_FILE=$MAMBA_ROOT_PREFIX/.${ENV_NAME}_yml.hash
+echo "🔧 Installing FEniCSx with micromamba (Drive cache enabled)"
 
 # --------------------------------------------------
-# Parse options
+# 0. Google Drive must be mounted beforehand
 # --------------------------------------------------
-FORCE=false
-CLEAN=false
-
-for arg in "$@"; do
-  case $arg in
-    --force) FORCE=true ;;
-    --clean) CLEAN=true ;;
-  esac
-done
-
-# --------------------------------------------------
-# Drive check
-# --------------------------------------------------
-if [ ! -d /content/drive/MyDrive ]; then
-  echo "❌ Google Drive is not mounted"
+if [ ! -d "/content/drive/MyDrive" ]; then
+  echo "❌ Google Drive not mounted."
+  echo "Run in a Colab cell first:"
+  echo "  from google.colab import drive"
+  echo "  drive.mount('/content/drive')"
   exit 1
 fi
 
-mkdir -p "$MAMBA_ROOT_PREFIX"
+# --------------------------------------------------
+# 1. Paths (IMPORTANT)
+# --------------------------------------------------
+MAMBA_ROOT_PREFIX="/content/micromamba"             # executable location
+MAMBA_BIN="${MAMBA_ROOT_PREFIX}/bin/micromamba"
+MAMBA_PKGS_DIRS="/content/drive/MyDrive/mamba_pkgs" # cache only (noexec OK)
+
+ENV_NAME="fenicsx"
+YML_FILE="setup/fenicsx.yml"
 
 # --------------------------------------------------
-# micromamba
+# 2. Create directories
 # --------------------------------------------------
-
-if [ ! -x "$MAMBA_ROOT_PREFIX/bin/micromamba" ]; then
-  echo "🔧 Installing micromamba..."
-  mkdir -p "$MAMBA_ROOT_PREFIX/bin"
-  wget -qO- https://micromamba.snakepit.net/api/micromamba/linux-64/latest \
-    | tar -xvj bin/micromamba
-  mv bin/micromamba "$MAMBA_ROOT_PREFIX/bin/"
-  chmod +x "$MAMBA_ROOT_PREFIX/bin/micromamba"
-fi
+mkdir -p "${MAMBA_ROOT_PREFIX}/bin"
+mkdir -p "${MAMBA_PKGS_DIRS}"
 
 # --------------------------------------------------
-# Hash
+# 3. Install micromamba (if missing)
 # --------------------------------------------------
-NEW_HASH=$(sha256sum "$YML_FILE" | awk '{print $1}')
-OLD_HASH=$(cat "$HASH_FILE" 2>/dev/null || echo "")
-
-# --------------------------------------------------
-# Clean
-# --------------------------------------------------
-if $CLEAN; then
-  echo "🔥 Cleaning environment"
-  rm -rf "$MAMBA_ROOT_PREFIX/envs/$ENV_NAME"
-  rm -f "$HASH_FILE"
-fi
-
-# --------------------------------------------------
-# Exists?
-# --------------------------------------------------
-ENV_EXISTS=false
-if micromamba env list | awk '{print $1}' | grep -qx "$ENV_NAME"; then
-  ENV_EXISTS=true
-fi
-
-# --------------------------------------------------
-# Install
-# --------------------------------------------------
-if $ENV_EXISTS && [ "$NEW_HASH" = "$OLD_HASH" ] && ! $FORCE; then
-  echo "✅ $ENV_NAME is up to date"
+if [ ! -x "${MAMBA_BIN}" ]; then
+  echo "📥 Downloading micromamba..."
+  curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest \
+    | tar -xvj -C "${MAMBA_ROOT_PREFIX}/bin" --strip-components=1 bin/micromamba
+  chmod +x "${MAMBA_BIN}"
 else
-  echo "🔄 Installing $ENV_NAME"
-  $ENV_EXISTS && micromamba remove -n "$ENV_NAME" -y --quiet
-  micromamba create -n "$ENV_NAME" -f "$YML_FILE" -y
-  echo "$NEW_HASH" > "$HASH_FILE"
-  echo "🎉 fenicsx environment ready"
+  echo "📦 micromamba already exists"
 fi
+
+# --------------------------------------------------
+# 4. Environment variables
+# --------------------------------------------------
+export MAMBA_ROOT_PREFIX
+export MAMBA_PKGS_DIRS
+
+# --------------------------------------------------
+# 5. Remove old env (optional: --clean)
+# --------------------------------------------------
+if [[ "${1:-}" == "--clean" ]]; then
+  echo "🧹 Removing existing environment: ${ENV_NAME}"
+  "${MAMBA_BIN}" env remove -n "${ENV_NAME}" -y || true
+fi
+
+# --------------------------------------------------
+# 6. Create / update environment
+# --------------------------------------------------
+if "${MAMBA_BIN}" env list | grep -q "${ENV_NAME}"; then
+  echo "🔁 Updating existing environment: ${ENV_NAME}"
+  "${MAMBA_BIN}" env update -n "${ENV_NAME}" -f "${YML_FILE}"
+else
+  echo "🆕 Creating environment: ${ENV_NAME}"
+  "${MAMBA_BIN}" env create -n "${ENV_NAME}" -f "${YML_FILE}"
+fi
+
+# --------------------------------------------------
+# 7. Summary
+# --------------------------------------------------
+echo
+echo "✅ FEniCSx environment ready"
+echo "--------------------------------------------------"
+echo "micromamba : ${MAMBA_BIN}"
+echo "env name   : ${ENV_NAME}"
+echo "pkg cache  : ${MAMBA_PKGS_DIRS}"
+echo
+echo "▶ Activate in shell:"
+echo "  source /content/micromamba/etc/profile.d/micromamba.sh"
+echo "  micromamba activate ${ENV_NAME}"
+echo
+echo "▶ Or in Python:"
+echo "  !micromamba run -n ${ENV_NAME} python -c \"import dolfinx; print(dolfinx.__version__)\""
