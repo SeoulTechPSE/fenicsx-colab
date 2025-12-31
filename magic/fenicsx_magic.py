@@ -1,15 +1,26 @@
 import os, subprocess, tempfile, textwrap, shlex, time
+from pathlib import Path
 from IPython.core.magic import register_cell_magic
 
-# --------------------------------------------------
-# MPI helpers
-# --------------------------------------------------
+# ==================================================
+# micromamba (ABSOLUTE PATH)
+# ==================================================
+MICROMAMBA = Path("/content/micromamba/bin/micromamba")
 
-def detect_mpi(env):
+if not MICROMAMBA.exists():
+    raise RuntimeError(
+        "❌ micromamba not found at /content/micromamba/bin/micromamba\n"
+        "Run setup_fenicsx.py first."
+    )
+
+# ==================================================
+# MPI helpers
+# ==================================================
+def detect_mpi():
     try:
         out = subprocess.run(
             ["mpiexec", "--version"],
-            env=env, capture_output=True, text=True, timeout=2
+            capture_output=True, text=True, timeout=2
         )
         txt = (out.stdout + out.stderr).lower()
         if "open mpi" in txt:
@@ -19,27 +30,23 @@ def detect_mpi(env):
     return "mpich"
 
 
-def mpi_version(env):
+def mpi_version():
     try:
         out = subprocess.run(
             ["mpiexec", "--version"],
-            env=env, capture_output=True, text=True, timeout=2
+            capture_output=True, text=True, timeout=2
         )
         return (out.stdout + out.stderr).splitlines()[0]
     except Exception:
         return "unknown"
 
-# --------------------------------------------------
+# ==================================================
 # %%fenicsx
-# --------------------------------------------------
-
+# ==================================================
 @register_cell_magic
 def fenicsx(line, cell):
     args = shlex.split(line)
 
-    # -----------------------------
-    # options
-    # -----------------------------
     np = 1
     info_mode = "--info" in args
     time_mode = "--time" in args
@@ -47,38 +54,31 @@ def fenicsx(line, cell):
     if "-np" in args:
         np = int(args[args.index("-np") + 1])
 
-    # -----------------------------
-    # environment
-    # -----------------------------
-    env = os.environ.copy()
-    env.update({
-        "PATH": "/usr/local/micromamba/bin:" + env.get("PATH", ""),
-        "MAMBA_ROOT_PREFIX": "/usr/local/micromamba",
-        "OMPI_ALLOW_RUN_AS_ROOT": "1",
-        "OMPI_ALLOW_RUN_AS_ROOT_CONFIRM": "1",
-    })
+    mpi_impl = detect_mpi()
+    mpi_ver  = mpi_version()
 
-    mpi_impl = detect_mpi(env)
-    mpi_ver  = mpi_version(env)
-
-    # -----------------------------
+    # --------------------------------------------------
     # command builder
-    # -----------------------------
+    # --------------------------------------------------
     def cmd(script):
         if np == 1:
-            return ["micromamba", "run", "-n", "fenicsx", "python", script]
+            return [
+                str(MICROMAMBA), "run", "-n", "fenicsx",
+                "python", script
+            ]
 
         launcher = "mpirun" if mpi_impl == "openmpi" else "mpiexec"
         return [
-            "micromamba", "run", "-n", "fenicsx",
-            launcher, "-n", str(np), "python", script
+            str(MICROMAMBA), "run", "-n", "fenicsx",
+            launcher, "-n", str(np),
+            "python", script
         ]
 
-    # -----------------------------
-    # --info mode
-    # -----------------------------
+    # --------------------------------------------------
+    # --info
+    # --------------------------------------------------
     if info_mode:
-        info_code = f"""
+        info_code = """
 from mpi4py import MPI
 import dolfinx, sys, platform, os
 
@@ -87,7 +87,6 @@ if comm.rank == 0:
     print("🐍 Python         :", sys.version.split()[0])
     print("📦 dolfinx        :", dolfinx.__version__)
     print("💻 Platform       :", platform.platform())
-    print("🧵 Running as root:", os.geteuid() == 0)
     print("🧵 MPI size       :", comm.size)
 """
         with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False) as f:
@@ -95,10 +94,7 @@ if comm.rank == 0:
             script = f.name
 
         try:
-            res = subprocess.run(
-                cmd(script),
-                env=env, capture_output=True, text=True
-            )
+            res = subprocess.run(cmd(script), capture_output=True, text=True)
             print(res.stdout, end="")
             print(res.stderr, end="")
         finally:
@@ -112,9 +108,9 @@ if comm.rank == 0:
         print(f"MPI ranks (-np)   : {np}")
         return
 
-    # -----------------------------
+    # --------------------------------------------------
     # normal execution
-    # -----------------------------
+    # --------------------------------------------------
     user_code = textwrap.dedent(cell)
 
     if time_mode:
@@ -141,10 +137,7 @@ if _comm.rank == 0:
         script = f.name
 
     try:
-        res = subprocess.run(
-            cmd(script),
-            env=env, capture_output=True, text=True
-        )
+        res = subprocess.run(cmd(script), capture_output=True, text=True)
         print(res.stdout, end="")
         print(res.stderr, end="")
     finally:
