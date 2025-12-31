@@ -1,14 +1,15 @@
-# FEniCSx Colab Quick Start
+# FEniCSx on Google Colab
 
-This single cell will:
+This repository provides a **reproducible Google Colab setup** for running
+**FEniCSx (dolfinx)** with MPI support using `micromamba`.
 
-1. Mount Google Drive (for package cache)
-2. Clone the FEniCSx Colab repository (idempotent)
-3. Install the FEniCSx environment via micromamba
-4. Register the `%%fenicsx` Jupyter cell magic
-5. Optionally run self-test
+No local installation is required.
 
 ---
+
+## 🚀 Colab Quick Start (1 Cell)
+
+Open a new Google Colab notebook and run **this single cell**:
 
 ```python
 # --------------------------------------------------
@@ -65,19 +66,11 @@ except Exception as e:
     print("⚠️ %%fenicsx magic not found:", e)
 ```
 
-## Notes
+After this finishes, the Jupyter cell magic %%fenicsx becomes available.
 
-1. Goolge Drive cache
-   - Initial mount required; repeated runs are safe
-1. `--clean`
-   - Set `USE_CLEAN = True` to remove existing FEniCSx environment and reinstall
-   - Default `False` preserves the environment and is faster
-1. Cell magic
-   - After setup, you can use `%%fenicsx` in Colab for parallel MPI computations
-   - `-np N` → number of MPI ranks
-   - `--time` → measure elapsed time
+---
 
-### Example usage:
+▶ Example
 
 ```python
 %%fenicsx -np 4 --time
@@ -87,22 +80,36 @@ import dolfinx
 
 comm = MPI.COMM_WORLD
 
+print(f"Hello from rank {comm.rank}", flush=True)
 if comm.rank == 0:
-    print(f"Hello from rank {comm.rank}")
-    print("  dolfinx :", dolfinx.__version__)
-    print("  MPI size:", MPI.COMM_WORLD.size)
-else:
-    print(f"Hello from rank {comm.rank}")
-```
-
-```
-Hello from rank 0
-  dolfinx : 0.10.0
-  MPI size: 4
-⏱ Elapsed time: 1.783023 s
-Hello from rank 1
-Hello from rank 2
-Hello from rank 3
+    print(f"  dolfinx : {dolfinx.__version__}")
+    print(f"  MPI size: {comm.size}")
 ```
 
 This will measure elapsed time on rank `0`.
+
+---
+
+### 📦 What This Setup Does
+
+- Installs FEniCSx using micromamba
+- Enables MPI execution inside Colab
+- Registers a custom Jupyter cell magic %%fenicsx
+- Keeps everything reproducible via GitHub
+
+---
+
+### 🔁 Re-running
+
+- Restarting the Colab runtime removes the environment
+- Simply re-run the Quick Start cell to restore everything
+
+---
+
+### 🧹 Clean Reinstall (Optional)
+
+To force a clean reinstall of the environment:
+
+```python
+%run {REPO_DIR / 'setup_fenicsx.py'} --clean
+```
