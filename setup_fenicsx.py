@@ -12,8 +12,6 @@ INSTALL_SCRIPT = REPO_DIR / "setup" / "install_fenicsx.sh"
 MAGIC_FILE     = REPO_DIR / "magic" / "fenicsx_magic.py"
 TEST_FILE      = REPO_DIR / "tests" / "test_fenicsx_basic.py"
 
-MICROMAMBA = "micromamba"   # rely on PATH set by install script
-
 # ==================================================
 # Helpers
 # ==================================================
@@ -47,10 +45,9 @@ run(["bash", str(INSTALL_SCRIPT), *opts], cwd=REPO_DIR)
 # ==================================================
 
 print("✨ Loading fenicsx Jupyter magic...")
-with open(MAGIC_FILE, "r") as f:
-    exec(f.read(), globals())
-
-print("🎉 fenicsx ready")
+code = MAGIC_FILE.read_text()
+exec(compile(code, str(MAGIC_FILE), "exec"), globals())
+print("✅ %%fenicsx registered")
 
 # ==================================================
 # 3. Optional self-test
@@ -60,7 +57,7 @@ if TEST_FILE.exists():
     print("\n🧪 Running fenicsx self-test...")
     run(
         [
-            MICROMAMBA, "run", "-n", "fenicsx",
+            "micromamba", "run", "-n", "fenicsx",
             "mpiexec", "-n", "4",
             "python", str(TEST_FILE),
         ],
