@@ -4,6 +4,18 @@ import subprocess
 import sys
 
 # ==================================================
+# Google Drive mount helper (Colab-safe)
+# ==================================================
+def ensure_drive_mounted():
+    # Only run on Google Colab
+    if "google.colab" not in sys.modules:
+        return
+
+    from google.colab import drive
+    if not os.path.ismount("/content/drive"):
+        drive.mount("/content/drive")
+
+# ==================================================
 # Configuration
 # ==================================================
 REPO_URL = "https://github.com/seoultechpse/fenicsx-colab.git"
@@ -25,13 +37,13 @@ def run(cmd, cwd=None):
     subprocess.run(cmd, cwd=cwd, check=True)
 
 # ==================================================
-# 1. Google Drive check
+# 1. Ensure Google Drive (for cache persistence)
 # ==================================================
+ensure_drive_mounted()
+
 if not (ROOT / "drive" / "MyDrive").exists():
-    print("❌ Google Drive not mounted.")
-    print("Run first:")
-    print("  from google.colab import drive")
-    print("  drive.mount('/content/drive')")
+    print("❌ Google Drive not available.")
+    print("This setup requires Google Drive for package cache.")
     sys.exit(1)
 
 # ==================================================
@@ -40,14 +52,17 @@ if not (ROOT / "drive" / "MyDrive").exists():
 if not REPO_DIR.exists():
     print("📥 Cloning repository...")
     run(["git", "clone", REPO_URL, str(REPO_DIR)])
+elif not (REPO_DIR / ".git").exists():
+    print("❌ Directory exists but is not a git repository:", REPO_DIR)
+    sys.exit(1)
 else:
-    print("📦 Repo exists")
+    print("📦 Repo already cloned — skipping")
 
 # ==================================================
 # 3. Install FEniCSx environment
 # ==================================================
 opts = sys.argv[1:]   # e.g. --clean
-print("🔧 Installing environment...")
+print("🔧 Installing FEniCSx environment...")
 run(["bash", str(INSTALL_SCRIPT), *opts], cwd=REPO_DIR)
 
 # ==================================================
