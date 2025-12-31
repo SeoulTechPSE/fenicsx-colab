@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -e
 
 # ==================================================
 # FEniCSx install script for Google Colab
@@ -78,14 +78,7 @@ fi
 # --------------------------------------------------
 echo
 echo "✅ FEniCSx environment ready"
-echo "--------------------------------------------------"
-echo "micromamba : ${MAMBA_BIN}"
-echo "env name   : ${ENV_NAME}"
-echo "pkg cache  : ${MAMBA_PKGS_DIRS}"
+echo "📦 micromamba : ${MAMBA_BIN}"
+echo "📦 env name   : ${ENV_NAME}"
+echo "📦 pkg cache  : ${MAMBA_PKGS_DIRS}"
 echo
-echo "▶ Activate in shell:"
-echo "  source /content/micromamba/etc/profile.d/micromamba.sh"
-echo "  micromamba activate ${ENV_NAME}"
-echo
-echo "▶ Or in Python:"
-echo "  !micromamba run -n ${ENV_NAME} python -c \"import dolfinx; print(dolfinx.__version__)\""
