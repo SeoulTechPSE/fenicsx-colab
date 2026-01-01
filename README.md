@@ -13,52 +13,52 @@ Open a new Google Colab notebook and run **this single cell**:
 
 ```python
 # --------------------------------------------------
-# 1️⃣ Mount Google Drive (for cache)
+# 1️⃣ Mount Google Drive (optional, for cache)
 # --------------------------------------------------
-from google.colab import drive, output
+from google.colab import drive
 import os
+
 if not os.path.ismount("/content/drive"):
     drive.mount("/content/drive")
+else:
+    print("📦 Google Drive already mounted")
 
-# ==================================================
-# 2️⃣ Repo & paths
-# ==================================================
+# --------------------------------------------------
+# 2️⃣ Clone fenicsx-colab repository (idempotent)
+# --------------------------------------------------
 from pathlib import Path
-import subprocess, sys
+import subprocess
 
 REPO_URL = "https://github.com/seoultechpse/fenicsx-colab.git"
 ROOT = Path("/content")
 REPO_DIR = ROOT / "fenicsx-colab"
 
 def run(cmd):
-    #print("   $", " ".join(map(str, cmd)))
+    #print("$", " ".join(map(str, cmd)))
     subprocess.run(cmd, check=True)
 
-# --------------------------------------------------
-# 3️⃣ Clone repository (idempotent)
-# --------------------------------------------------
 if not REPO_DIR.exists():
     print("📥 Cloning fenicsx-colab...")
     run(["git", "clone", REPO_URL, str(REPO_DIR)])
 elif not (REPO_DIR / ".git").exists():
     raise RuntimeError("Directory exists but is not a git repository")
 else:
-    print("📦 Repo already exists — skipping clone")
+    print("📦 Repository already exists — skipping clone")
 
 # --------------------------------------------------
-# 4️⃣ Run setup in current kernel
-#    Option: add '--clean' to force reinstall
-# ------------------------------
+# 3️⃣ Run setup_fenicsx.py IN THIS KERNEL (CRITICAL)
+# --------------------------------------------------
+print("🚀 Running setup_fenicsx.py in current kernel")
+
 USE_CLEAN = False  # <--- Set True to remove existing environment
 opts = "--clean" if USE_CLEAN else ""
 
-# Run the setup script
 get_ipython().run_line_magic(
     "run", f"{REPO_DIR / 'setup_fenicsx.py'} {opts}"
 )
 
 # ==================================================
-# 5️⃣ Verify %%fenicsx magic is registered
+# 4️⃣ Sanity check
 # ==================================================
 try:
     get_ipython().run_cell_magic('fenicsx', '--info -np 4', '')
