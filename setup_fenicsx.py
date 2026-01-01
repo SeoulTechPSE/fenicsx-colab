@@ -8,7 +8,7 @@ REPO_DIR = Path(__file__).resolve().parent
 
 INSTALL_SCRIPT = REPO_DIR / "setup" / "install_fenicsx.sh"
 MAGIC_FILE     = REPO_DIR / "magic" / "fenicsx_magic.py"
-TEST_FILE      = REPO_DIR / "tests" / "test_fenicsx_basic.py"
+#TEST_FILE      = REPO_DIR / "tests" / "test_fenicsx_basic.py"
 
 MICROMAMBA = "/content/micromamba/bin/micromamba"
 
@@ -40,10 +40,14 @@ if not MAGIC_FILE.exists():
 # ==================================================
 # 0. Ensure Google Drive (for cache)
 # ==================================================
-if not Path("/content/drive/MyDrive").exists():
-    print("❌ Google Drive not available. Required for package cache.")
-    sys.exit(1)    
+USE_DRIVE_CACHE = False
 
+if Path("/content/drive/MyDrive").exists():
+    print("📦 Google Drive detected — using persistent cache")
+    USE_DRIVE_CACHE = True
+else:
+    print("⚠️ Google Drive not mounted — using local cache (/content)")
+  
 # ==================================================
 # 1. Install / update FEniCSx environment
 # ==================================================
@@ -54,10 +58,10 @@ run(["bash", str(INSTALL_SCRIPT), *opts], cwd=REPO_DIR)
 # ==================================================
 # 2. Load %%fenicsx magic
 # ==================================================
-print("✨ Loading FEniCSx Jupyter magic...")
+print("✨ Loading FEniCSx Jupyter magic...", end=" ")
 code = MAGIC_FILE.read_text()
 exec(compile(code, str(MAGIC_FILE), "exec"), globals())
-#print("✅ %%fenicsx registered")
+print("%%fenicsx registered")
 
 # # ==================================================
 # # 3. Optional self-test

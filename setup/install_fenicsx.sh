@@ -3,41 +3,43 @@ set -e
 
 # ==================================================
 # FEniCSx install script for Google Colab
-#  - micromamba binary: /content (exec OK)
-#  - package cache    : Google Drive (persistent)
+# - micromamba binary : /content/micromamba/bin
+# - package cache     : Google Drive (if mounted)
+#                       or local (/content)
 # ==================================================
 
-echo "🔧 Installing FEniCSx with micromamba (Drive cache enabled)"
+echo "🔧 Installing FEniCSx with micromamba"
 
 # --------------------------------------------------
-# 0. Google Drive must be mounted beforehand
+# 1. Paths 
 # --------------------------------------------------
-if [ ! -d "/content/drive/MyDrive" ]; then
-  echo "❌ Google Drive not mounted."
-  echo "Run in a Colab cell first:"
-  echo "  from google.colab import drive"
-  echo "  drive.mount('/content/drive')"
-  exit 1
-fi
-
-# --------------------------------------------------
-# 1. Paths (IMPORTANT)
-# --------------------------------------------------
-MAMBA_ROOT_PREFIX="/content/micromamba"             # executable location
+MAMBA_ROOT_PREFIX="/content/micromamba" 
 MAMBA_BIN="${MAMBA_ROOT_PREFIX}/bin/micromamba"
-MAMBA_PKGS_DIRS="/content/drive/MyDrive/mamba_pkgs" # cache only (noexec OK)
 
 ENV_NAME="fenicsx"
 YML_FILE="setup/fenicsx.yml"
 
 # --------------------------------------------------
-# 2. Create directories
+# 2. Package cache (Drive OPTIONAL)
+# --------------------------------------------------
+echo "📦 Checking package cache location..."
+
+if [ -d "/content/drive/MyDrive" ]; then
+  echo "   ✅ Google Drive detected — using persistent cache"
+  export MAMBA_PKGS_DIRS="/content/drive/MyDrive/mamba_pkgs"
+else
+  echo "   ⚠️ Google Drive not mounted — using local cache"
+  export MAMBA_PKGS_DIRS="/content/mamba_pkgs"
+fi
+
+# --------------------------------------------------
+# 3. Create directories
 # --------------------------------------------------
 mkdir -p "${MAMBA_ROOT_PREFIX}/bin"
 mkdir -p "${MAMBA_PKGS_DIRS}"
 
 # --------------------------------------------------
-# 3. Install micromamba (if missing)
+# 4. Install micromamba (idempotent)
 # --------------------------------------------------
 if [ ! -x "${MAMBA_BIN}" ]; then
   echo "📥 Downloading micromamba..."
@@ -48,9 +50,6 @@ else
   echo "📦 micromamba already exists"
 fi
 
-# --------------------------------------------------
-# 4. Environment variables
-# --------------------------------------------------
 export MAMBA_ROOT_PREFIX
 export MAMBA_PKGS_DIRS
 
