@@ -7,7 +7,6 @@ dependencies:
   - scipy
   - vtk
   - pyvista>=0.45.0
-  - meshio
   - python-gmsh
   - ipywidgets
   - trame
