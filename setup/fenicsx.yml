@@ -3,6 +3,7 @@ channels:
   - conda-forge
 dependencies:
   - fenics-dolfinx=0.10
+  - petsc=*=complex*
   - mpi4py
   - scipy
   - vtk
