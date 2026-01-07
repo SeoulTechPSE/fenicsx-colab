@@ -2,8 +2,8 @@ name: fenicsx
 channels:
   - conda-forge
 dependencies:
-  - fenics-dolfinx=0.10
   - petsc=*=complex*
+  - fenics-dolfinx=0.10
   - mpi4py
   - scipy
   - vtk
