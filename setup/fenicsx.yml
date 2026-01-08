@@ -6,6 +6,7 @@ dependencies:
   - fenics-dolfinx=0.10
   - mpi4py
   - scipy
+  - sympy
   - vtk
   - pyvista>=0.45.0
   - python-gmsh
