@@ -7,6 +7,7 @@ dependencies:
   - mpi4py
   - scipy
   - sympy
+  - networkx
   - vtk
   - pyvista>=0.45.0
   - python-gmsh
