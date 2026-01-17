@@ -120,6 +120,7 @@ USE_COMPLEX = False  # Default setting
 ```
 
 **Use for:**
+
 - Standard FEM problems (heat transfer, elasticity, fluid dynamics)
 - Nonlinear problems
 - Mixed finite element formulations
@@ -134,6 +135,7 @@ USE_COMPLEX = True  # Set this to install complex PETSc
 ```
 
 **Use for:**
+
 - Eigenvalue problems (modal analysis)
 - Frequency domain analysis
 - Time-harmonic wave equations
@@ -184,14 +186,6 @@ Alternatively, run directly:
 # Clean install with complex PETSc
 %run {REPO_DIR / 'setup_fenicsx.py'} --complex --clean
 ```
-
----
-
-## 📚 Additional Resources
-
-- **Setup Scripts:** See [`setup/README.md`](setup/README.md) for detailed installation options
-- **FEniCSx Documentation:** https://docs.fenicsproject.org
-- **Examples:** Check the `examples/` directory for sample notebooks
 
 ---
 
