@@ -200,7 +200,7 @@ Alternatively, run directly:
 ### Parallel Execution
 
 ```python
-%%fenicsx -np 8  # Run with 8 MPI processes
+%%fenicsx -np 4  # Run with 4 MPI processes
 ```
 
 ### Timing
