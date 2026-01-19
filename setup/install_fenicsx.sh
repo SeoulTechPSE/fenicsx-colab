@@ -141,6 +141,7 @@ channels:
   - conda-forge
 dependencies:
   - ${PETSC_SPEC}
+  - slepc
   - fenics-dolfinx=0.10
   - mpi4py
   - scipy
