@@ -30,28 +30,26 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --help|-h)
-      cat << EOF
-Usage: $0 [OPTIONS]
-
-Install FEniCSx with micromamba on Google Colab
-
-OPTIONS:
-  --complex           Install complex PETSc version
-  --real              Install real PETSc version (default)
-  --clean             Remove existing environment before install
-  --help              Show this help message
-
-EXAMPLES:
-  $0                  # Install with real PETSc (default)
-  $0 --complex        # Install with complex PETSc
-  $0 --clean          # Clean install with real PETSc
-  $0 --complex --clean # Clean install with complex PETSc
-
-NOTES:
-  - Real PETSc (default): Recommended for most FEM problems
-  - Complex PETSc: Required for eigenvalue problems, frequency domain analysis
-  - Package cache automatically uses Google Drive if mounted
-EOF
+      echo "Usage: $0 [OPTIONS]"
+      echo ""
+      echo "Install FEniCSx with micromamba on Google Colab"
+      echo ""
+      echo "OPTIONS:"
+      echo "  --complex           Install complex PETSc version"
+      echo "  --real              Install real PETSc version (default)"
+      echo "  --clean             Remove existing environment before install"
+      echo "  --help              Show this help message"
+      echo ""
+      echo "EXAMPLES:"
+      echo "  $0                  # Install with real PETSc (default)"
+      echo "  $0 --complex        # Install with complex PETSc"
+      echo "  $0 --clean          # Clean install with real PETSc"
+      echo "  $0 --complex --clean # Clean install with complex PETSc"
+      echo ""
+      echo "NOTES:"
+      echo "  - Real PETSc (default): Recommended for most FEM problems"
+      echo "  - Complex PETSc: Required for eigenvalue problems, frequency domain analysis"
+      echo "  - Package cache automatically uses Google Drive if mounted"
       exit 0
       ;;
     *)
@@ -74,9 +72,9 @@ echo "=============================================="
 echo
 
 # --------------------------------------------------
-# Paths 
+# Paths
 # --------------------------------------------------
-MAMBA_ROOT_PREFIX="/content/micromamba" 
+MAMBA_ROOT_PREFIX="/content/micromamba"
 MAMBA_BIN="${MAMBA_ROOT_PREFIX}/bin/micromamba"
 ENV_NAME="fenicsx"
 
@@ -101,12 +99,17 @@ mkdir -p "${MAMBA_PKGS_DIRS}"
 
 # --------------------------------------------------
 # Install micromamba (idempotent)
+# [CHANGED] Old method used micro.mamba.pm/api which returned a .tar.bz2 archive
+# piped through tar -xvj. That endpoint has become unreliable (truncated downloads).
+# New method downloads a single statically-linked binary directly from GitHub Releases.
 # --------------------------------------------------
 if [ ! -x "${MAMBA_BIN}" ]; then
   echo "📥 Downloading micromamba..."
-  curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest \
-    | tar -xvj -C "${MAMBA_ROOT_PREFIX}/bin" --strip-components=1 bin/micromamba
+  curl -fsSL \
+    "https://github.com/mamba-org/micromamba-releases/releases/latest/download/micromamba-linux-64" \
+    -o "${MAMBA_BIN}"
   chmod +x "${MAMBA_BIN}"
+  echo "   ✅ micromamba downloaded successfully"
 else
   echo "📦 micromamba already exists"
 fi
@@ -135,35 +138,35 @@ else
   PETSC_SPEC="petsc=*=real*"
 fi
 
-cat > "${TEMP_YML}" << EOF
-name: ${ENV_NAME}
-channels:
-  - conda-forge
-dependencies:
-  - ${PETSC_SPEC}
-  - slepc
-  - fenics-dolfinx=0.10
-  - mpi4py
-  - scipy
-  - sympy
-  - networkx
-  - vtk
-  - pyvista>=0.45.0
-  - python-gmsh
-  - ipywidgets
-  - trame
-  - trame-client
-  - trame-server
-  - trame-vtk
-  - trame-vuetify
-  - jupyter-book
-  - jupytext
-  - sphinx>=6.0.0
-variables:
-  PYVISTA_OFF_SCREEN: false
-  PYVISTA_JUPYTER_BACKEND: "trame"
-  LIBGL_ALWAYS_SOFTWARE: 1
-EOF
+{
+  echo "name: ${ENV_NAME}"
+  echo "channels:"
+  echo "  - conda-forge"
+  echo "dependencies:"
+  echo "  - ${PETSC_SPEC}"
+  echo "  - slepc"
+  echo "  - fenics-dolfinx=0.10"
+  echo "  - mpi4py"
+  echo "  - scipy"
+  echo "  - sympy"
+  echo "  - networkx"
+  echo "  - vtk"
+  echo "  - pyvista>=0.45.0"
+  echo "  - python-gmsh"
+  echo "  - ipywidgets"
+  echo "  - trame"
+  echo "  - trame-client"
+  echo "  - trame-server"
+  echo "  - trame-vtk"
+  echo "  - trame-vuetify"
+  echo "  - jupyter-book"
+  echo "  - jupytext"
+  echo "  - sphinx>=6.0.0"
+  echo "variables:"
+  echo "  PYVISTA_OFF_SCREEN: false"
+  echo "  PYVISTA_JUPYTER_BACKEND: \"trame\""
+  echo "  LIBGL_ALWAYS_SOFTWARE: 1"
+} > "${TEMP_YML}"
 
 echo "✅ Configuration created: ${TEMP_YML}"
 echo "   PETSc spec: ${PETSC_SPEC}"
@@ -186,7 +189,6 @@ fi
 echo
 echo "🔍 Verifying installation..."
 
-# Activate and check PETSc type
 "${MAMBA_BIN}" run -n "${ENV_NAME}" python -c "
 from dolfinx import default_scalar_type
 import numpy as np
