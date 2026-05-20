@@ -12,67 +12,41 @@ No local installation is required.
 Open a new Google Colab notebook and run **this single cell**:
 
 ```python
-# --------------------------------------------------
-# 1️⃣ Mount Google Drive (optional, for cache)
-# --------------------------------------------------
+# FEniCSx 0.10.x on Google Colab
+# SeoulTechPSE/fenicsx-colab + OpenMPI 5.x (PRRTE) slot patch
+
 from google.colab import drive
-import os
-
-if not os.path.ismount("/content/drive"):
-    drive.mount("/content/drive")
-else:
-    print("📦 Google Drive already mounted")
-
-# --------------------------------------------------
-# 2️⃣ Clone fenicsx-colab repository (idempotent)
-# --------------------------------------------------
+import os, multiprocessing, subprocess
 from pathlib import Path
-import subprocess
 
-REPO_URL = "https://github.com/seoultechpse/fenicsx-colab.git"
-ROOT = Path("/content")
-REPO_DIR = ROOT / "fenicsx-colab"
-
-def run(cmd):
-    subprocess.run(cmd, check=True)
-
-if not REPO_DIR.exists():
-    print("📥 Cloning fenicsx-colab...")
-    run(["git", "clone", REPO_URL, str(REPO_DIR)])
-elif not (REPO_DIR / ".git").exists():
-    raise RuntimeError("Directory exists but is not a git repository")
+if not os.path.ismount('/content/drive'):
+    drive.mount('/content/drive')
 else:
-    print("📦 Repository already exists — skipping clone")
+    print('Google Drive already mounted')
 
-# --------------------------------------------------
-# 3️⃣ Run setup_fenicsx.py IN THIS KERNEL (CRITICAL)
-# --------------------------------------------------
-print("🚀 Running setup_fenicsx.py in current kernel")
+REPO_URL = 'https://github.com/seoultechpse/fenicsx-colab.git'
+REPO_DIR = Path('/content/fenicsx-colab')
+if not REPO_DIR.exists():
+    print('Cloning fenicsx-colab...')
+    subprocess.run(['git', 'clone', REPO_URL, str(REPO_DIR)], check=True)
+else:
+    print('Repository already exists')
 
-# ⚙️ Configuration
-USE_COMPLEX = False  # <--- Set True ONLY if you need complex PETSc
-USE_CLEAN = False    # <--- Set True to remove existing environment
+# OpenMPI 5.x (PRRTE) slot patch
+# Colab VM has 2 CPUs; force slots=4 via hostfile (oversubscribe)
+N_PROC = 4
+with open('/root/hostfile', 'w') as f:
+    f.write(f'localhost slots={N_PROC}\n')
+os.environ['OMPI_MCA_rmaps_default_mapping_policy'] = 'slot:OVERSUBSCRIBE'
+os.environ['PRTE_MCA_rmaps_default_mapping_policy'] = 'slot:OVERSUBSCRIBE'
+print(f'MPI: {N_PROC} slots on {multiprocessing.cpu_count()} CPUs (oversubscribe enabled)')
 
-# Build options
+USE_COMPLEX = False
+USE_CLEAN   = False
 opts = []
-if USE_COMPLEX:
-    opts.append("--complex")
-if USE_CLEAN:
-    opts.append("--clean")
-
-opts_str = " ".join(opts) if opts else ""
-
-get_ipython().run_line_magic(
-    "run", f"{REPO_DIR / 'setup_fenicsx.py'} {opts_str}"
-)
-
-# --------------------------------------------------
-# 4️⃣ Sanity check
-# --------------------------------------------------
-try:
-    get_ipython().run_cell_magic('fenicsx', '--info -np 4', '')
-except Exception as e:
-    print("⚠️ %%fenicsx magic not found:", e)
+if USE_COMPLEX: opts.append('--complex')
+if USE_CLEAN:   opts.append('--clean')
+get_ipython().run_line_magic('run', f"{REPO_DIR / 'setup_fenicsx.py'} {' '.join(opts)}")
 ```
 
 After this finishes, the Jupyter cell magic `%%fenicsx` becomes available.
