@@ -1,5 +1,5 @@
 # ==================================================
-# fenicsx_magic.py 
+# fenicsx_magic.py
 # ==================================================
 
 import os, subprocess, tempfile, textwrap, shlex
@@ -9,7 +9,14 @@ from IPython.core.magic import register_cell_magic
 # Hard-coded micromamba path (NO PATH DEPENDENCY)
 # --------------------------------------------------
 MICROMAMBA = "/content/micromamba/bin/micromamba"
-ENV_NAME = "fenicsx"
+
+# Default environment name. [CHANGED] No longer a hard-coded constant —
+# setup_fenicsx.py exports FENICSX_ENV_NAME into the process environment
+# right before this file is exec'd, so a custom --env-name (e.g. to keep a
+# DOLFINx 0.10 env alongside the 0.11 default) is picked up automatically.
+# Falls back to "fenicsx" if the variable isn't set (e.g. this file is
+# exec'd standalone, outside of setup_fenicsx.py).
+DEFAULT_ENV_NAME = os.environ.get("FENICSX_ENV_NAME", "fenicsx")
 
 # --------------------------------------------------
 # MPI detection helpers
@@ -55,6 +62,14 @@ def fenicsx(line, cell):
     if "-np" in args:
         np = int(args[args.index("-np") + 1])
 
+    # [CHANGED] Per-cell environment override, e.g. `%%fenicsx --env fenicsx010`.
+    # Falls back to DEFAULT_ENV_NAME (FENICSX_ENV_NAME at load time, or
+    # "fenicsx" if that was never set) when not given explicitly.
+    if "--env" in args:
+        env_name = args[args.index("--env") + 1]
+    else:
+        env_name = DEFAULT_ENV_NAME
+
     # -----------------------------
     # Environment
     # -----------------------------
@@ -73,13 +88,13 @@ def fenicsx(line, cell):
     def build_cmd(script):
         if np == 1:
             return [
-                MICROMAMBA, "run", "-n", ENV_NAME,
+                MICROMAMBA, "run", "-n", env_name,
                 "python", script
             ]
 
         launcher = "mpirun" if mpi_impl == "openmpi" else "mpiexec"
         return [
-            MICROMAMBA, "run", "-n", ENV_NAME,
+            MICROMAMBA, "run", "-n", env_name,
             launcher, "-n", str(np),
             "python", script
         ]
@@ -116,7 +131,7 @@ if comm.rank == 0:
 
         print("\n🔎 fenicsx runtime info")
         print("-----------------------")
-        print(f"Environment        : {ENV_NAME}")
+        print(f"Environment        : {env_name}")
         print(f"micromamba         : {MICROMAMBA}")
         print(f"MPI implementation : {mpi_impl.upper()}")
         print(f"MPI version        : {mpi_ver}")
