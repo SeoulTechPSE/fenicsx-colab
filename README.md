@@ -12,7 +12,7 @@ No local installation is required.
 Open a new Google Colab notebook and run **this single cell**:
 
 ```python
-# FEniCSx 0.10.x on Google Colab
+# FEniCSx on Google Colab (default: DOLFINx 0.11.x)
 # SeoulTechPSE/fenicsx-colab + OpenMPI 5.x (PRRTE) slot patch
 
 from google.colab import drive
@@ -41,11 +41,16 @@ os.environ['OMPI_MCA_rmaps_default_mapping_policy'] = 'slot:OVERSUBSCRIBE'
 os.environ['PRTE_MCA_rmaps_default_mapping_policy'] = 'slot:OVERSUBSCRIBE'
 print(f'MPI: {N_PROC} slots on {multiprocessing.cpu_count()} CPUs (oversubscribe enabled)')
 
+DOLFINX_VERSION = '0.11'   # pin to '0.10' for legacy notebooks not yet migrated
 USE_COMPLEX = False
 USE_CLEAN   = False
-opts = []
+ENV_NAME    = None         # leave None for default 'fenicsx'; set e.g. 'fenicsx010'
+                            # to keep a 0.10 environment alongside the 0.11 default
+
+opts = [f'--version {DOLFINX_VERSION}']
 if USE_COMPLEX: opts.append('--complex')
 if USE_CLEAN:   opts.append('--clean')
+if ENV_NAME:    opts.append(f'--env-name {ENV_NAME}')
 get_ipython().run_line_magic('run', f"{REPO_DIR / 'setup_fenicsx.py'} {' '.join(opts)}")
 ```
 
@@ -79,7 +84,51 @@ This will measure elapsed time on rank `0`.
 - Enables MPI execution inside Colab
 - Registers a custom Jupyter cell magic `%%fenicsx`
 - Keeps everything reproducible via GitHub
-- **Default:** Installs real PETSc (suitable for most FEM problems)
+- **Default:** Installs DOLFINx **0.11** with real PETSc (suitable for most FEM problems)
+
+---
+
+## 🔢 DOLFINx Version Selection
+
+### Default: 0.11 ✅
+
+As of June 2026, conda-forge ships `fenics-dolfinx=0.11.0` for linux-64,
+linux-aarch64, macOS-64/arm64 and win-64. This is now the default version
+installed by the Quick Start cell:
+
+```python
+DOLFINX_VERSION = '0.11'  # default
+```
+
+### Pinning to 0.10 (legacy notebooks)
+
+If you have notebooks written against the 0.10.x API that haven't been
+migrated yet, pin the version explicitly:
+
+```python
+DOLFINX_VERSION = '0.10'
+```
+
+### Running 0.10 and 0.11 side by side
+
+By default all environments share the name `fenicsx`, so switching
+`DOLFINX_VERSION` and re-running Quick Start will overwrite the existing
+environment. To keep both versions installed at once (e.g. while migrating
+a course series chapter by chapter), give the older one a distinct name:
+
+```python
+DOLFINX_VERSION = '0.10'
+ENV_NAME = 'fenicsx010'
+```
+
+Then select the environment per-notebook via the `%%fenicsx` magic's
+environment option (see `setup_fenicsx.py --help` for the exact flag), or
+by re-running Quick Start with `ENV_NAME = None` to switch back to the
+default `fenicsx` (0.11) environment.
+
+**Note:** some ecosystem add-ons (e.g. `dolfinx_mpc`) may lag behind the
+core `fenics-dolfinx` release on conda-forge. Check their latest available
+version before assuming 0.11 compatibility.
 
 ---
 
@@ -123,7 +172,8 @@ USE_COMPLEX = True  # Set this to install complex PETSc
 
 - Restarting the Colab runtime removes the environment
 - Simply re-run the Quick Start cell to restore everything
-- Environment type (real/complex) persists until you change `USE_COMPLEX`
+- Environment type (real/complex) and DOLFINx version persist until you
+  change `USE_COMPLEX` or `DOLFINX_VERSION`
 
 ---
 
@@ -149,16 +199,27 @@ USE_COMPLEX = False
 USE_CLEAN = True
 ```
 
+### Switch Between DOLFINx Versions
+
+**Important:** Use clean reinstall when switching DOLFINx versions within
+the same environment name, to avoid a partially-resolved conda environment:
+
+```python
+# Move an existing 'fenicsx' env from 0.10 to 0.11
+DOLFINX_VERSION = '0.11'
+USE_CLEAN = True
+```
+
 ### Manual Command
 
 Alternatively, run directly:
 
 ```python
-# Clean install with real PETSc
+# Clean install with real PETSc, default version (0.11)
 %run {REPO_DIR / 'setup_fenicsx.py'} --clean
 
-# Clean install with complex PETSc
-%run {REPO_DIR / 'setup_fenicsx.py'} --complex --clean
+# Clean install with complex PETSc, pinned to 0.10
+%run {REPO_DIR / 'setup_fenicsx.py'} --complex --clean --version 0.10
 ```
 
 ---
@@ -224,6 +285,15 @@ else:
     print("✅ Real PETSc (float64)")
 ```
 
+### Verify DOLFINx Version
+
+```python
+%%fenicsx
+
+import dolfinx
+print(f"DOLFINx version: {dolfinx.__version__}")
+```
+
 ### Magic Not Found
 
 If `%%fenicsx` is not recognized:
@@ -240,10 +310,22 @@ If `%%fenicsx` is not recognized:
 
 If you're upgrading from an older setup:
 
-- **No changes needed** for existing code
+- **No changes needed** for existing code targeting the same DOLFINx version
 - Default behavior is unchanged (real PETSc)
 - The old `fenicsx.yml` is no longer used (dynamic generation)
 - To use complex PETSc, simply set `USE_COMPLEX = True`
+
+### Upgrading from the 0.10-only setup
+
+- **The default DOLFINx version is now 0.11** (previously hardcoded to 0.10)
+- conda-forge has shipped `fenics-dolfinx=0.11.0` since 2026-06-10, so the
+  upgrade requires no new channel configuration
+- Existing notebooks written against the 0.10 API should either be migrated,
+  or pin `DOLFINX_VERSION = '0.10'` explicitly until migration is complete
+- `setup_fenicsx.py` must accept and forward a `--version` argument (and
+  optionally `--env-name`) to the underlying environment-creation logic for
+  this to take effect — if your local copy predates this, update it together
+  with this README
 
 ---
 
