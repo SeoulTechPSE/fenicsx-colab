@@ -4,13 +4,22 @@ set -e
 # ==================================================
 # FEniCSx install script for Google Colab
 # Supports both real and complex PETSc versions
+# Supports selectable DOLFINx version (default: 0.11)
 # ==================================================
 
 # --------------------------------------------------
 # Default values
 # --------------------------------------------------
-PETSC_TYPE="real"  # Default to real for backward compatibility
+PETSC_TYPE="real"        # Default to real for backward compatibility
 CLEAN_INSTALL=false
+DOLFINX_VERSION="0.11"   # [CHANGED] was hardcoded "0.10"; conda-forge has
+                          # shipped 0.11.0 builds since 2026-06-10.
+ENV_NAME="fenicsx"        # overridable via --env-name, e.g. to keep
+                          # a 0.10 environment alongside a 0.11 one
+
+# conda-forge fenics-dolfinx versions known to be available at the time
+# this script was last updated. Update this list if conda-forge adds more.
+KNOWN_VERSIONS=("0.7" "0.7.3" "0.8" "0.8.0" "0.9" "0.9.0" "0.10" "0.10.0" "0.11" "0.11.0")
 
 # --------------------------------------------------
 # Parse arguments
@@ -29,27 +38,48 @@ while [[ $# -gt 0 ]]; do
       CLEAN_INSTALL=true
       shift
       ;;
+    --version)
+      DOLFINX_VERSION="$2"
+      shift 2
+      ;;
+    --version=*)
+      DOLFINX_VERSION="${1#*=}"
+      shift
+      ;;
+    --env-name)
+      ENV_NAME="$2"
+      shift 2
+      ;;
+    --env-name=*)
+      ENV_NAME="${1#*=}"
+      shift
+      ;;
     --help|-h)
       echo "Usage: $0 [OPTIONS]"
       echo ""
       echo "Install FEniCSx with micromamba on Google Colab"
       echo ""
       echo "OPTIONS:"
-      echo "  --complex           Install complex PETSc version"
-      echo "  --real              Install real PETSc version (default)"
-      echo "  --clean             Remove existing environment before install"
-      echo "  --help              Show this help message"
+      echo "  --complex            Install complex PETSc version"
+      echo "  --real               Install real PETSc version (default)"
+      echo "  --clean              Remove existing environment before install"
+      echo "  --version VERSION    DOLFINx version to install (default: 0.11)"
+      echo "  --env-name NAME      Conda env name (default: fenicsx)"
+      echo "  --help               Show this help message"
       echo ""
       echo "EXAMPLES:"
-      echo "  $0                  # Install with real PETSc (default)"
-      echo "  $0 --complex        # Install with complex PETSc"
-      echo "  $0 --clean          # Clean install with real PETSc"
-      echo "  $0 --complex --clean # Clean install with complex PETSc"
+      echo "  $0                            # Install 0.11, real PETSc (default)"
+      echo "  $0 --complex                  # Install 0.11, complex PETSc"
+      echo "  $0 --version 0.10             # Pin to 0.10 (e.g. for legacy notebooks)"
+      echo "  $0 --version 0.10 --env-name fenicsx010   # keep 0.10 alongside 0.11"
+      echo "  $0 --clean                    # Clean install with default version"
       echo ""
       echo "NOTES:"
       echo "  - Real PETSc (default): Recommended for most FEM problems"
       echo "  - Complex PETSc: Required for eigenvalue problems, frequency domain analysis"
       echo "  - Package cache automatically uses Google Drive if mounted"
+      echo "  - DOLFINx 0.11 is the current default; pass --version 0.10 to pin"
+      echo "    older notebooks that have not yet been migrated."
       exit 0
       ;;
     *)
@@ -61,13 +91,31 @@ while [[ $# -gt 0 ]]; do
 done
 
 # --------------------------------------------------
+# Validate requested DOLFINx version
+# --------------------------------------------------
+version_known=false
+for v in "${KNOWN_VERSIONS[@]}"; do
+  if [[ "${v}" == "${DOLFINX_VERSION}" ]]; then
+    version_known=true
+    break
+  fi
+done
+if ! ${version_known}; then
+  echo "⚠️  DOLFINx version '${DOLFINX_VERSION}' is not in the known list (${KNOWN_VERSIONS[*]})."
+  echo "   Proceeding anyway — conda-forge may have a newer release that this"
+  echo "   script's KNOWN_VERSIONS list hasn't been updated for yet."
+fi
+
+# --------------------------------------------------
 # Display configuration
 # --------------------------------------------------
 echo "=============================================="
 echo "🔧 FEniCSx Installation Configuration"
 echo "=============================================="
-echo "PETSc type   : ${PETSC_TYPE}"
-echo "Clean install: ${CLEAN_INSTALL}"
+echo "DOLFINx version : ${DOLFINX_VERSION}"
+echo "PETSc type       : ${PETSC_TYPE}"
+echo "Env name          : ${ENV_NAME}"
+echo "Clean install     : ${CLEAN_INSTALL}"
 echo "=============================================="
 echo
 
@@ -76,7 +124,6 @@ echo
 # --------------------------------------------------
 MAMBA_ROOT_PREFIX="/content/micromamba"
 MAMBA_BIN="${MAMBA_ROOT_PREFIX}/bin/micromamba"
-ENV_NAME="fenicsx"
 
 # --------------------------------------------------
 # Package cache (Drive OPTIONAL)
@@ -99,9 +146,6 @@ mkdir -p "${MAMBA_PKGS_DIRS}"
 
 # --------------------------------------------------
 # Install micromamba (idempotent)
-# [CHANGED] Old method used micro.mamba.pm/api which returned a .tar.bz2 archive
-# piped through tar -xvj. That endpoint has become unreliable (truncated downloads).
-# New method downloads a single statically-linked binary directly from GitHub Releases.
 # --------------------------------------------------
 if [ ! -x "${MAMBA_BIN}" ]; then
   echo "📥 Downloading micromamba..."
@@ -130,7 +174,7 @@ fi
 # --------------------------------------------------
 echo "📝 Generating environment configuration..."
 
-TEMP_YML="/tmp/fenicsx_${PETSC_TYPE}.yml"
+TEMP_YML="/tmp/fenicsx_${DOLFINX_VERSION}_${PETSC_TYPE}.yml"
 
 if [ "${PETSC_TYPE}" = "complex" ]; then
   PETSC_SPEC="petsc=*=complex*"
@@ -145,7 +189,7 @@ fi
   echo "dependencies:"
   echo "  - ${PETSC_SPEC}"
   echo "  - slepc"
-  echo "  - fenics-dolfinx=0.10"
+  echo "  - fenics-dolfinx=${DOLFINX_VERSION}"
   echo "  - mpi4py"
   echo "  - scipy"
   echo "  - sympy"
@@ -190,6 +234,7 @@ echo
 echo "🔍 Verifying installation..."
 
 "${MAMBA_BIN}" run -n "${ENV_NAME}" python -c "
+import dolfinx
 from dolfinx import default_scalar_type
 import numpy as np
 
@@ -200,9 +245,16 @@ else:
     petsc_type = 'real'
     scalar_type = 'float64'
 
+print(f'✅ Installed DOLFINx version: {dolfinx.__version__}')
 print(f'✅ Installed PETSc type: {petsc_type}')
 print(f'   Scalar type: {scalar_type}')
 " || echo "⚠️  Could not verify installation"
+
+# --------------------------------------------------
+# Detect Python version inside the new env (for sys.path instructions)
+# --------------------------------------------------
+ENV_PY_LIB_DIR=$("${MAMBA_BIN}" run -n "${ENV_NAME}" python -c \
+  "import sys; print(f'python{sys.version_info.major}.{sys.version_info.minor}')")
 
 # --------------------------------------------------
 # Summary
@@ -211,14 +263,15 @@ echo
 echo "=============================================="
 echo "✅ FEniCSx environment ready"
 echo "=============================================="
-echo "📦 micromamba : ${MAMBA_BIN}"
-echo "📦 env name   : ${ENV_NAME}"
-echo "📦 pkg cache  : ${MAMBA_PKGS_DIRS}"
-echo "📦 PETSc type : ${PETSC_TYPE}"
+echo "📦 micromamba   : ${MAMBA_BIN}"
+echo "📦 env name     : ${ENV_NAME}"
+echo "📦 pkg cache    : ${MAMBA_PKGS_DIRS}"
+echo "📦 DOLFINx ver. : ${DOLFINX_VERSION}"
+echo "📦 PETSc type   : ${PETSC_TYPE}"
 echo
 echo "To activate in Python:"
 echo "  import sys"
-echo "  sys.path.insert(0, '${MAMBA_ROOT_PREFIX}/envs/${ENV_NAME}/lib/python3.11/site-packages')"
+echo "  sys.path.insert(0, '${MAMBA_ROOT_PREFIX}/envs/${ENV_NAME}/lib/${ENV_PY_LIB_DIR}/site-packages')"
 echo
 echo "Or run commands directly:"
 echo "  ${MAMBA_BIN} run -n ${ENV_NAME} python your_script.py"
