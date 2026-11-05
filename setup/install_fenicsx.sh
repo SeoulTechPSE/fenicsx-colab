@@ -219,7 +219,11 @@ echo
 # --------------------------------------------------
 # Create / update environment
 # --------------------------------------------------
-if "${MAMBA_BIN}" env list | grep -q "^${ENV_NAME} "; then
+# Detect an existing env by its directory, not by parsing `env list`:
+# micromamba 2.x indents the names in that table ("  fenicsx   /content/..."),
+# so `grep "^${ENV_NAME} "` missed it and `env create` then stopped at an
+# interactive "Overwrite?: [y/N]" prompt (re-running setup on a live runtime).
+if [ -d "${MAMBA_ROOT_PREFIX}/envs/${ENV_NAME}/conda-meta" ]; then
   echo "🔄 Updating existing environment: ${ENV_NAME}"
   "${MAMBA_BIN}" env update -n "${ENV_NAME}" -f "${TEMP_YML}"
 else
