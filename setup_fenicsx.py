@@ -214,7 +214,11 @@ os.environ["FENICSX_ENV_NAME"] = env_name
 
 print("✨ Loading FEniCSx Jupyter magic...", end=" ")
 code = MAGIC_FILE.read_text()
-exec(compile(code, str(MAGIC_FILE), "exec"), globals())
+# Run the magic in its OWN namespace. With globals() it lived in the %run
+# namespace of this script, which IPython clears when the script is %run again;
+# if that second run then failed (e.g. during the install step), the already
+# registered %%fenicsx lost its imports (NameError: name 'shlex' is not defined).
+exec(compile(code, str(MAGIC_FILE), "exec"), {"__name__": "fenicsx_magic", "__file__": str(MAGIC_FILE)})
 print(f"%%fenicsx registered (env: {env_name})")
 
 print()
